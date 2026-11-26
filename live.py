@@ -21,7 +21,7 @@ except Exception as e:
 quotes = {}
 for i in range(0, len(codes), 40):
     batch = codes[i:i + 40]
-    ex = "|".join(f"tse_{c}.tw" for c in batch)
+    ex = "|".join(f"{stats[c].get('mkt', 'tse')}_{c}.tw" for c in batch)
     js = get_json("https://mis.twse.com.tw/stock/api/getStockInfo.jsp",
                   {"ex_ch": ex, "json": "1", "delay": "0"}, session=s)
     for q in (js or {}).get("msgArray", []):
@@ -56,7 +56,7 @@ for code, st in stats.items():
     else:
         continue
     pl = plan(p, H)
-    rows.append({"code": code, "name": st["name"], "price": p, "H": H, "status": status, "rank": rank,
+    rows.append({"code": code, "name": st["name"], "mkt": st.get("mkt", "tse"), "price": p, "H": H, "status": status, "rank": rank,
                  "vol_now": round(vol_now, 2), "vol_pace": round(vol_pace, 2), "dev": round(dev, 1),
                  "atr": st["atr"], "amt20": st["amt20"], **pl, "size_final": pl["size"] * mult})
 
