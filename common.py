@@ -2,6 +2,7 @@ import math, time, datetime as dt, requests
 
 HEADERS = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"}
 SLEEP = 3.5
+STOP_PCT = 0.07  # 停損：買進價下方 7%
 TW = dt.timezone(dt.timedelta(hours=8))
 
 
@@ -64,8 +65,8 @@ def ceil_tick(x):
 
 
 def plan(price, prior_high):
-    """停損、保本點、停利、部位比例（依收盤離前高）。"""
-    stop_raw = prior_high * 0.98
+    """停損（歐尼爾：買進價下方 7%）、保本點、停利、部位比例（依收盤離前高）。"""
+    stop_raw = price * (1 - STOP_PCT)
     stop_x = floor_tick(stop_raw)
     if abs(stop_x - stop_raw) < 1e-9:
         stop_x = round(stop_x - tick(stop_raw), 2)
