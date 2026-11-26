@@ -17,11 +17,11 @@ def num(x):
         return float("nan")
 
 
-def get_json(url, params=None, session=None):
+def get_json(url, params=None, session=None, timeout=20):
     s = session or requests
     for _ in range(3):
         try:
-            r = s.get(url, params=params, headers=HEADERS, timeout=20)
+            r = s.get(url, params=params, headers=HEADERS, timeout=timeout)
             if r.status_code == 200:
                 return r.json()
         except Exception as e:

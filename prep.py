@@ -87,7 +87,7 @@ def stocks_day(d):
 def otc_day(d):
     """上櫃：櫃買中心每日收盤行情。"""
     js = get_json("https://www.tpex.org.tw/www/zh-tw/afterTrading/dailyQuotes",
-                  {"date": d.replace("-", "/"), "type": "EW", "response": "json"})
+                  {"date": d.replace("-", "/"), "type": "EW", "response": "json"}, timeout=90)  # 櫃買中心回應時快時慢
     time.sleep(SLEEP)
     if not js or str(js.get("stat", "")).lower() != "ok":
         return None
