@@ -1,0 +1,150 @@
+<!doctype html>
+<html lang="zh-Hant-TW">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>我的進場燈號</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#EEF1F4;--surface:#fff;--ink:#18212B;--muted:#5A6572;--line:#D6DCE2;--field:#F6F8FA;--go:#1E8A5A;--stop:#C3362B;--warn:#B57A08;--warn-soft:#FBF1DC;--ink-soft:#E6EAEE;color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root{--bg:#11161C;--surface:#1A2129;--ink:#E7ECF1;--muted:#9AA6B2;--line:#2C3641;--field:#141A21;--go:#3DBA82;--stop:#EE6A5F;--warn:#E3AE45;--warn-soft:#3A2E14;--ink-soft:#26303B;color-scheme:dark}}
+*,*::before,*::after{box-sizing:inherit}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:"Noto Sans TC","PingFang TC","Microsoft JhengHei",system-ui,sans-serif;line-height:1.6;font-variant-numeric:tabular-nums}
+main{max-width:720px;margin:0 auto;padding:16px 14px 40px}
+.signal{display:grid;grid-template-columns:auto 1fr;gap:16px;align-items:center;background:var(--surface);border:1px solid var(--line);border-radius:18px;padding:18px}
+.lamp{width:84px;height:84px;border-radius:50%;display:grid;place-items:center;color:#fff;font-weight:700;font-size:20px;background:var(--muted)}
+.lamp.go{background:var(--go)}.lamp.stop{background:var(--stop)}.lamp.half{background:var(--warn)}
+h1{font-size:23px;margin:0;line-height:1.3}
+h2{font-size:18px;margin:0}
+.muted{color:var(--muted);font-size:14px;margin:4px 0 0}
+section{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:16px 14px;margin-top:14px}
+.head{display:flex;justify-content:space-between;align-items:baseline;gap:8px;flex-wrap:wrap}
+.card{border-top:1px solid var(--line);padding:12px 0}
+.card:first-of-type{border-top:0}
+.top{display:flex;justify-content:space-between;gap:8px;align-items:baseline}
+.name{font-weight:700;font-size:17px}
+.badge{font-size:12px;padding:2px 9px;border-radius:999px;white-space:nowrap}
+.b0{background:var(--ink);color:var(--surface)}.b1{background:var(--warn-soft);color:var(--warn)}.b2{background:var(--ink-soft);color:var(--muted)}
+.nums{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;margin-top:8px}
+.nums div{background:var(--field);border-radius:8px;padding:6px 8px}
+.nums b{display:block;font-size:15px}
+.nums span{font-size:12px;color:var(--muted)}
+.days{display:flex;gap:6px;overflow-x:auto;margin-top:12px;padding-bottom:4px}
+.day{flex:0 0 auto;background:var(--field);border-radius:8px;padding:6px 8px;font-size:12px;min-width:84px}
+.day b{display:block;font-size:13px}
+.up{color:var(--stop)}.down{color:var(--go)}
+.warnline{background:var(--warn-soft);color:var(--warn);border-radius:10px;padding:10px 12px;margin-top:12px;font-size:14px}
+.empty{color:var(--muted);padding:8px 0}
+button{font:inherit;border:1px solid var(--line);background:var(--field);color:var(--ink);border-radius:10px;padding:8px 12px;cursor:pointer}
+button:focus-visible{outline:2px solid var(--muted);outline-offset:2px}
+.foot{color:var(--muted);font-size:13px;margin-top:16px}
+@media (max-width:420px){.lamp{width:72px;height:72px;font-size:18px}.nums{grid-template-columns:repeat(2,minmax(0,1fr))}}
+</style>
+</head>
+<body>
+<main>
+  <div class="signal">
+    <div class="lamp" id="lamp">…</div>
+    <div><h1 id="status">讀取中</h1><p class="muted" id="why"></p></div>
+  </div>
+
+  <section>
+    <div class="head"><h2>盤中候選</h2><span class="muted" id="liveTime"></span></div>
+    <div id="staleWarn"></div>
+    <div id="live"><p class="empty">讀取中</p></div>
+  </section>
+
+  <section>
+    <div class="head"><h2>昨天收盤的訊號</h2><span class="muted" id="eodTime"></span></div>
+    <div id="eod"><p class="empty">讀取中</p></div>
+  </section>
+
+  <section>
+    <div class="head"><h2>大盤最近 10 天</h2><button id="reload">重新整理</button></div>
+    <div class="days" id="days"></div>
+  </section>
+
+  <p class="foot">規則：收盤過前 20 天最高收盤、量 ≥ 5 日均量 1.5 倍、離 20 日線 ≤ 15%、不是漲停、成交金額 ≥ 3 億、平均高低差 ≥ 3%。13:20 照最新一次更新決定，更新時間不對就以券商 App 為準。隔日沖分點與事件日要自己查。這是交易紀律工具，不是投資建議。</p>
+</main>
+<script>
+const qs = new URLSearchParams(location.search);
+let repo = qs.get('repo');
+if (!repo){
+  const owner = location.hostname.split('.')[0];
+  const name = location.pathname.split('/').filter(Boolean)[0] || (owner + '.github.io');
+  repo = owner + '/' + name;
+}
+const RAW = `https://raw.githubusercontent.com/${repo}/main/data/`;
+const $ = id => document.getElementById(id);
+function el(tag, cls, text){ const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; }
+const f = (n, d = 2) => Number(n).toLocaleString('zh-TW', { minimumFractionDigits: d, maximumFractionDigits: d });
+const sizeLabel = s => s >= 1 ? '全押' : s >= 0.5 ? '半倉' : s >= 0.25 ? '1/4' : s > 0 ? (s * 100) + '%' : '不開新單';
+async function load(name){
+  try{ const r = await fetch(RAW + name + '?t=' + Date.now(), { cache: 'no-store' }); if (!r.ok) return null; return await r.json(); }catch(e){ return null; }
+}
+function nums(box, items){ const g = el('div', 'nums'); items.forEach(([b, s]) => { const d = el('div'); d.appendChild(el('b', null, b)); d.appendChild(el('span', null, s)); g.appendChild(d); }); box.appendChild(g); }
+
+function renderMarket(m){
+  const lamp = $('lamp');
+  if (!m){ $('status').textContent = '還沒有大盤資料'; $('why').textContent = '收盤後那支排程跑完才會有。'; return; }
+  const red = m.mode === 'red';
+  lamp.className = 'lamp ' + (red ? 'stop' : m.mult < 1 ? 'half' : 'go');
+  lamp.textContent = red ? '紅燈' : '綠燈';
+  $('status').textContent = red ? '紅燈：不開新單' : (m.mult < 1 ? '綠燈：新單用半倉' : '綠燈：照個股規則買');
+  $('why').textContent = red
+    ? (m.rally ? `反彈第 ${m.rally} 天，第 4 天起等一天漲 1.5% 以上又放量。` : '等跌完，出現第一根收紅。') + `（${m.asof}）`
+    : `近 25 天出貨日 ${m.dist} / 6。（${m.asof}）`;
+  const days = $('days'); days.textContent = '';
+  (m.days || []).slice(-10).reverse().forEach(d => {
+    const c = el('div', 'day'); c.appendChild(el('b', null, d.date.slice(5)));
+    c.appendChild(el('div', d.pct > 0 ? 'up' : d.pct < 0 ? 'down' : null, d.pct == null ? '–' : (d.pct > 0 ? '+' : '') + f(d.pct) + '%'));
+    c.appendChild(el('div', null, d.vol_up == null ? '' : d.vol_up ? '量增' : '量縮'));
+    if (d.tags && d.tags.length) c.appendChild(el('div', null, d.tags.join('、')));
+    days.appendChild(c);
+  });
+}
+
+function renderLive(l, m){
+  const box = $('live'); box.textContent = ''; $('staleWarn').textContent = '';
+  if (!l){ box.appendChild(el('p', 'empty', '今天盤中還沒有資料。')); return; }
+  $('liveTime').textContent = '更新 ' + l.updated.slice(11) + `（報價 ${l.quotes}/${l.candidates} 檔）`;
+  const now = new Date(), upd = new Date(l.updated.replace(' ', 'T') + ':00+08:00');
+  const tw = new Date(now.toLocaleString('en-US', { timeZone: 'Asia/Taipei' }));
+  const mins = (now - upd) / 60000, inSession = tw.getDay() > 0 && tw.getDay() < 6 && (tw.getHours() * 60 + tw.getMinutes()) >= 540 && (tw.getHours() * 60 + tw.getMinutes()) <= 815;
+  if (inSession && mins > 15) $('staleWarn').appendChild(el('div', 'warnline', `已經 ${Math.round(mins)} 分鐘沒更新，13:20 請以券商 App 為準。`));
+  if (!l.rows.length){ box.appendChild(el('p', 'empty', '沒有接近或突破前高的候選股。')); return; }
+  l.rows.forEach(r => {
+    const c = el('div', 'card'); const top = el('div', 'top');
+    top.appendChild(el('span', 'name', `${r.code} ${r.name}`)); top.appendChild(el('span', 'badge b' + r.rank, r.status)); c.appendChild(top);
+    nums(c, [[f(r.price), `現價（前高 ${f(r.H)}）`], [`${f(r.vol_now)}／${f(r.vol_pace)}`, '量倍數 目前／預估全日'], [f(r.dev, 1) + '%', '離 20 日線'],
+      ['≤ ' + f(r.stop), '停損（收盤）'], ['≥ ' + f(r.breakeven), '保本點'], [f(r.target), '停利'],
+      [f(r.gap, 1) + '%', '離前高'], [sizeLabel(r.size_final), m && m.mode === 'red' ? '大盤紅燈' : '部位'], [f(r.atr, 1) + '%', '平均高低差']]);
+    box.appendChild(c);
+  });
+}
+
+function renderEod(e){
+  const box = $('eod'); box.textContent = '';
+  if (!e){ box.appendChild(el('p', 'empty', '還沒有資料。')); return; }
+  $('eodTime').textContent = e.asof;
+  if (!e.signals.length){ box.appendChild(el('p', 'empty', '那天收盤沒有符合條件的上市股票。')); return; }
+  e.signals.forEach(r => {
+    const c = el('div', 'card'); const top = el('div', 'top');
+    top.appendChild(el('span', 'name', `${r.code} ${r.name}`)); top.appendChild(el('span', 'badge b0', sizeLabel(r.size))); c.appendChild(top);
+    nums(c, [[f(r.price), `收盤（前高 ${f(r.H)}）`], [f(r.vol_r) + ' 倍', '量倍數'], [f(r.dev, 1) + '%', '離 20 日線'],
+      ['≤ ' + f(r.stop), '停損（收盤）'], ['≥ ' + f(r.breakeven), '保本點'], [f(r.target), '停利']]);
+    box.appendChild(c);
+  });
+}
+
+async function refresh(){
+  const [m, l, e] = await Promise.all([load('market.json'), load('live.json'), load('eod.json')]);
+  renderMarket(m); renderLive(l, m); renderEod(e);
+}
+$('reload').addEventListener('click', refresh);
+refresh(); setInterval(refresh, 60000);
+</script>
+</body>
+</html>
